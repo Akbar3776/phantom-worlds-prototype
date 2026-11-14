@@ -68,6 +68,12 @@ jobs:
           python3 -c 'import json; json.load(open(".claude/settings.json"))'
           python3 -c 'import tomllib; tomllib.load(open(".codex/config.toml", "rb"))'
 
+      - name: Shell scripts pass ShellCheck
+        run: shellcheck scripts/*.sh
+
+      - name: Relative links in the docs resolve
+        run: python3 scripts/check-docs.py
+
       - name: Contract changes carry a decisions line (AGENTS.md rule 6)
         if: github.event_name == 'pull_request'
         env:

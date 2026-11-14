@@ -7,7 +7,7 @@
       "pnpmVersion": "10"
     }
   },
-  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postCreateCommand": "pipx install uv && npm install --global @anthropic-ai/claude-code && bash scripts/bootstrap.sh",
   "forwardPorts": [5173, 8000],
   "portsAttributes": {
     "5173": { "label": "web (Vite dev server)" },
