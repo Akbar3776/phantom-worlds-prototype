@@ -41,12 +41,15 @@ The project is self-contained. No step waits on a named person, and nothing depe
 | Accounts, review, reputation, games | section 11 |
 | Why something is the way it is | sections 3 and 15 |
 
+Setting up a place to work: `SETUP.md`. One task from claim to merge: `CONTRIBUTING.md`.
+
 ## 4. Repository layout
 
 ```
-AGENTS.md  CLAUDE.md  SETUP.md  README.md  LICENSE
-docs/        PROJECT-CONTEXT.md, DATA-LINKS.md, decisions.md, ai-log.md
+AGENTS.md  CLAUDE.md  SETUP.md  CONTRIBUTING.md  README.md  LICENSE
+docs/        PROJECT-CONTEXT.md, DATA-LINKS.md, decisions.md, ai-log.md, cloud-environment.md
 prompts/     prompts that start sessions and tasks
+scripts/     bootstrap.sh (tools and packages), check-network.sh and hosts.txt (hosts we call), check-docs.py
 contracts/   JSON Schemas for data products, OpenAPI for the API, URL contract
 engine/      Python package `phantom`: archive access, cutouts, registration, stacks,
              photometry, spectra, features, detectors, checks, predictions, searched map, CLI
@@ -57,6 +60,7 @@ web/         Vite + React + TypeScript single-page app
 proof/       one script that produces every number on the Proof panel
 data/        local cache and downloads, git-ignored
 .github/workflows/   CI, deploy, weekly update
+.devcontainer/       Codespaces and VS Code dev container
 ```
 
 ## 5. Lanes
@@ -68,6 +72,10 @@ data/        local cache and downloads, git-ignored
 | Web | `web/`, `.github/workflows/deploy-web.yml` | `web/` |
 
 Any session can take any lane. Lanes meet only at `contracts/`. Each session works in its own branch, and in its own git worktree when sessions share a machine. A session on another lane reviews each pull request with `prompts/3-review.md` before merge.
+
+Claim a task before you write code. Check the open pull requests, then open a draft pull request named `<ID> <what it does>`. An open pull request with that task ID means the task is taken.
+
+A cloud session may be given its branch name by its tool, such as `claude/...`. Keep that name. The lane label comes from the paths the pull request changes.
 
 ## 6. Tooling and commands
 
@@ -84,6 +92,16 @@ pnpm -C web lint && pnpm -C web test            # web
 pnpm -C web build                               # must stay under the size budget
 pnpm -C web e2e                                 # Playwright on the five targets
 ```
+
+Commands that work today:
+
+```
+bash scripts/bootstrap.sh                       # checks the tools, installs packages from the lockfiles
+bash scripts/check-network.sh                   # shows which archive hosts this machine reaches
+python3 scripts/check-docs.py                   # relative links in the docs resolve
+```
+
+CI runs on every pull request from `.github/workflows/ci.yml`. Lanes extend that file and do not add a second CI workflow. A new host goes into `scripts/hosts.txt` in the pull request that first calls it.
 
 ## 7. Definition of done for any task
 
@@ -106,6 +124,7 @@ pnpm -C web e2e                                 # Playwright on the five targets
 - Pixels with IRSA's rejected flag bits get zero weight in every fit and stack. Bit 21 marks a pixel on a known source and is never masked.
 - Science wavelengths come from `CWAVE` and `CBAND`, never from hardcoded band edges.
 - Models: test split by sky tile, gold labels only in the test set, scores per brightness bin, release gate in `docs/PROJECT-CONTEXT.md` section 9.9. A model that fails the gate is not published.
+- Molecule readings first. The type model stores three results per source: molecule readings alone, spectrum alone, all data. Every estimate carries its feature contributions (`docs/PROJECT-CONTEXT.md` sections 3.11 and 9.6).
 - Small pull requests. One task per pull request. Commit messages in the imperative, task ID first: `T12 add visit stacks`.
 - When a pass mark fails, report the measured value. Do not tune a threshold to make it pass.
 

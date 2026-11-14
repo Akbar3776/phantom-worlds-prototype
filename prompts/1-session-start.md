@@ -19,14 +19,16 @@ Your lane is <Engine | ML | Web>.
    j. Which licences are forbidden and which tools does that rule out?
    k. Why do we not show a full molecule composition, and what do we show?
    l. What is the main type model, and what makes its percentages honest?
-4. Check the tools your lane needs and print versions. Engine and ML: git, uv, python 3.12. Web: git, node, pnpm. Install what is missing with uv or pnpm.
+   m. Which three type results are stored for every source, and what does the input ladder publish?
+4. Run `bash scripts/bootstrap.sh` and `bash scripts/check-network.sh`. Report anything missing or not reached. Engine and ML need git, uv and Python 3.12. Web needs git, node and pnpm. Install what is missing with uv or pnpm.
 5. List the open checks (docs/PROJECT-CONTEXT.md section 16 and section 9.12) that block your lane's first tasks. Do them. Record each answer in docs/decisions.md with the command or URL used.
-6. Take the first unticked task in your lane in docs/PROJECT-CONTEXT.md section 12 and work the plan in order.
+6. Take the first unticked task in your lane in docs/PROJECT-CONTEXT.md section 12 that no open pull request has claimed, and work the plan in order.
 
 For every task:
 - State the task ID and its acceptance check before you start.
+- Claim it first: open a draft pull request named "<ID> <what it does>" (CONTRIBUTING.md).
 - Write the test first where a test is possible.
-- Keep the change to that one task. Open a pull request named "<ID> <what it does>".
+- Keep the change to that one task, in that pull request.
 - Paste the acceptance check output in the pull request.
 - Tick the box in docs/PROJECT-CONTEXT.md section 12 and add your line to docs/ai-log.md.
 - Report in three lines: what changed, the check output, the next task ID. Then continue with the next task.
