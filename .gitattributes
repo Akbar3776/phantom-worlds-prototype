@@ -1,0 +1,16 @@
+# Line endings: LF in the repository on every platform.
+* text=auto eol=lf
+
+# Binary data products. Never diffed or merged as text.
+*.fits binary
+*.fits.gz binary
+*.parquet binary
+*.npz binary
+
+# Lockfiles are generated. GitHub collapses them in diffs.
+uv.lock linguist-generated=true
+web/pnpm-lock.yaml linguist-generated=true
+
+# Docs and prompts count as documentation in GitHub's language bar.
+docs/** linguist-documentation=true
+prompts/** linguist-documentation=true
