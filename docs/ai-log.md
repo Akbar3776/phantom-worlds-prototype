@@ -5,3 +5,4 @@ One line per task. Used for the AI-use statement on the project page.
 | Date (WIB) | Agent | Lane | Task | Files touched |
 |---|---|---|---|---|
 | 13 Nov 2026 | Claude (chat) | planning | Planning docs, agent rules, ML research | docs/PROJECT-CONTEXT.md, docs/DATA-LINKS.md, SETUP.md |
+| 14 Nov 2026 | Claude Code | setup | SETUP.md steps 2, 4 and 5, cloud environment, GitHub setup (CI, labels, templates, dev container), licence, readme | SETUP.md, AGENTS.md, CLAUDE.md, .claude/settings.json, .codex/config.toml, .gitignore, .env.example, .editorconfig, .gitattributes, README.md, LICENSE, docs/, prompts/, .github/, .devcontainer/ |
