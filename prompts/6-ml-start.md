@@ -9,7 +9,7 @@ Work in this order, one pull request per task:
 3. T43a. Build the label table: one row per source with type, label source and grade. Gold for testing, silver at half weight. Report counts per type and grade.
 4. T43b. Training spectra. Ingest SPIFF. Extract cube spectra for labelled sources. Run the two checks in section 9.4: cube against our own single-frame spectra for 20 bright isolated stars (K22), and QR2 against DR1 for sources in both.
 5. T42 and T43c. Features and molecule readings with resampled errors and refusal reasons.
-6. T43d to T43g. Template match, XGBoost spectrum trees and the other experts, stacking, calibration, conformal sets, both stored results, deciding bands, novelty checks.
+6. T43d to T43g. Template match, XGBoost feature trees (E0, molecule readings alone) and spectrum trees (E2), the other experts, the input ladder of section 9.11, stacking, calibration, conformal sets, the three stored results, feature contributions, deciding bands, novelty checks.
 7. T45-M1. Real-or-artefact model from injections and flagged artefacts.
 8. Write a model card per model in ml/ and publish only models that pass section 9.9.
 

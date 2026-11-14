@@ -178,6 +178,19 @@ The data plan (section 9.4, links in `DATA-LINKS.md` section 7):
 
 The GitHub repository is ready. Work moves to Claude Code with three files: `SETUP.md`, this file, and `DATA-LINKS.md`. The docs describe the project and its order of work, without assigning work to named people or start times.
 
+### 3.11 Molecule readings first (14 Nov)
+
+The original idea, restated: decode each SPHEREx spectrum to the molecular level, train on that level to estimate the most likely object type, and show a confidence that helps a person shape their own thinking and research. The tool does not judge or decide.
+
+"Molecular level" means the molecule features we can measure: which molecules show in the light, and how strongly. A full composition stays out of reach for the reasons in section 9.3.
+
+How the idea is built:
+1. **Decode.** Every source gets molecule readings: one feature per molecule with its strength, error and significance, or a refusal with its reason (section 9.3).
+2. **Identify.** A model trained on those readings alone gives a type estimate. This is the idea in its pure form. It is stored as its own result and shown on screen.
+3. **Explain.** Every estimate is explained in features: which ones moved it toward a type, which ones moved it away, and which measurement would settle it.
+
+What we added, and why: molecule readings alone cannot carry every type. Hot stars, galaxies and quasars are expected to show few of our features at SPHEREx's resolving power `[ESTIMATE, measured by the input ladder]`. Their identity sits in the overall spectrum shape, brightness and motion. So the full spectrum and the other surveys come in as further steps, and the gain from each step is measured and published (section 9.11, proof test B13). That number says how much of an object's identity its molecules alone reveal, which is a measured statement about SPHEREx itself.
+
 ---
 
 ## 4. Product
@@ -641,7 +654,7 @@ Unsigned 16-bit little-endian images on the field grid. Value = (flux - offset) 
 
 `blend` is the share of fitted light in the source's footprint that belongs to neighbours, 0 to 1. `word` is the confidence word from section 5.5. Each feature holds `{ "value","err" }`.
 
-The ML lane extends `ml` with: `p_class_spectrum` (spectrum alone), `p_class_all` (all data), `conformal_set`, `p_range` (resampled 16th to 84th percentile), `expert_votes`, `refused` (reason when no type is given), and per-feature `origin`. Add these to the contract in T02 or with a line in `docs/decisions.md`.
+The ML lane extends `ml` with: `p_class_features` (molecule readings alone), `p_class_spectrum` (spectrum alone), `p_class_all` (all data), `feature_contrib` (how far each feature moved the result, toward or away from the top type), `conformal_set`, `p_range` (resampled 16th to 84th percentile), `expert_votes`, `refused` (reason when no type is given), and per-feature `origin`. Add these to the contract in T02 or with a line in `docs/decisions.md`.
 
 **Spectrum** `fields/<id>/spectra/<source>.json`
 
@@ -837,7 +850,7 @@ Priority = signal × real × unexplained, each from 0 to 1, each stored. `signal
 
 The full design is in section 9. Summary:
 - **M1, real or artefact.** XGBoost. Real examples are test sources injected into real residual frames with the SPHEREx PSF, plus 5% of catalogue stars left out of the reference scene on purpose. Artefact examples are single-frame residuals, residuals beside bright stars, on flagged pixels or at edges, on ghost and streak flags. Threshold where 1% of artefacts pass.
-- **Type model (called M2 in older docs).** Readings, experts, and a calibrated combiner. Two results stored per source: spectrum alone, and all data.
+- **Type model (called M2 in older docs).** Readings, experts, and a calibrated combiner. Three results stored per source: molecule readings alone, spectrum alone, and all data.
 - **Molecule readings.** Feature strength with error for every source. For ice sightlines, each molecule as a percentage of water ice. No full composition percentages.
 - **Unusual objects (called M3 in older docs).** Isolation forest plus template residual plus empty conformal set.
 - **Deciding bands.** For the top two types, rank bands by the difference between their templates divided by the measurement error at that band. Store the top bands and whether each is measured.
@@ -912,6 +925,7 @@ Written 13 Nov after reading the resource pages, the Explanatory Supplement v2.1
 4. So the heavy part of our system is the fusion: several independent experts, each reading one kind of evidence, joined by a calibrated combiner.
 5. The main model is XGBoost. Section 9.11 names the library for every job, explains each in plain words, and lists the alternatives worth testing.
 6. Labelled SPHEREx spectra exist today. The largest set is the SPIFF library of ultracool dwarfs with 47 subtype templates. For every other type, training spectra come from the SPHEREx all-sky cube in chosen fields (section 9.4).
+7. Molecule readings come first (section 3.11). The spectrum is decoded into molecule features, a model trained on those features alone gives the first type estimate, and every estimate is explained in features. The full spectrum and the other surveys are added step by step, and the gain from each step is measured on our test split and published (section 9.11).
 
 ### 9.2 Facts that set the limits
 
@@ -1142,6 +1156,7 @@ Three layers. Each layer's output is stored, so every number on screen can be tr
 
 | Expert | Input | Output |
 |---|---|---|
+| E0 Feature trees (XGBoost) | molecule features and the two slopes from stage 10, each with its error and significance | probability per type. The idea of section 3.11 in its pure form |
 | E1 Template match | binned spectrum | best three templates, reduced χ², residual per band |
 | E2 Spectrum trees (XGBoost) | bands and indices | probability per type |
 | E3 Spectrum network (if time) | bands with errors | probability per type, reconstruction error |
@@ -1155,13 +1170,16 @@ Three layers. Each layer's output is stored, so every number on screen can be tr
 2. Combine expert outputs with a stacked logistic regression trained on out-of-fold predictions.
 3. Calibrate, then build the conformal set and the resampled range.
 4. Run the novelty checks from G.
-5. Write the explanation: the deciding bands, which expert moved the result most, what is missing, and which observation would settle it.
+5. Write the explanation: how far each feature moved the result (SHAP values of the trees, summed over the inputs that belong to one feature), the deciding bands, each named by its feature where it lies in one, which expert moved the result most, what is missing, and which observation would settle it.
 
-Two results are stored for every source:
-- **Spectrum alone**: E1 to E3 only.
+Three results are stored for every source:
+- **Molecule readings alone**: E0 only.
+- **Spectrum alone**: E0 to E3.
 - **All data**: every expert.
 
-Showing both tells the user what SPHEREx adds and what the other surveys add. A disagreement between the spectrum result and the catalogue type is the mismatch signal of stage 11.
+Showing all three tells the user what the molecule readings carry, what the rest of the spectrum adds, and what the other surveys add. A disagreement between the spectrum result and the catalogue type is the mismatch signal of stage 11.
+
+E0 abstains when fewer than two features are measured, and the panel then says `Not measured: too few molecule features`.
 
 When the template and the trees disagree on the top type, the shown confidence is capped at 50%.
 
@@ -1178,8 +1196,10 @@ Carbon monoxide, 4.7 µm    not detected       Measured    under 2σ
 Most likely type
 Probably an ultracool dwarf, T type     78%  (range 70 to 85)
 Also possible: reddened background star 14%
-Spectrum alone 61%.  With Gaia and WISE 78%.
-Deciding bands: 3.3 µm measured, 4.3 µm measured, 1.6 µm not measured
+Molecule readings alone 48%.  Spectrum alone 61%.  With Gaia and WISE 78%.
+Toward this type: methane dip, long slope
+Away from this type: none
+Deciding bands: methane dip 3.3 µm measured, carbon dioxide 4.3 µm measured, 1.6 µm not measured
 
 What would settle it
 A second visit with motion measured. Next SPHEREx pass: [date window].
@@ -1210,8 +1230,8 @@ All links and file names are in `DATA-LINKS.md` sections 6, 7 and 12. Keep downl
 | T43b | Training spectra: ingest SPIFF, extract cube spectra, cross-extraction and calibration checks | median ratio per band within 10% for bright isolated sources | 3 |
 | T43c | Molecule readings with resampled errors and refusal reasons | methane dip significant for Epsilon Indi B, absent for Barnard's Star | 2 |
 | T43d | E1 template match with SPIFF templates and per-type medians | subtype within 2 of the literature for 80% of a held-out SPIFF sample | 2 |
-| T43e | Survey features, gates, E2 trees, E4, E7 | release gate values reported per brightness bin | 3 |
-| T43f | Stacking, calibration, conformal sets, resampled ranges, both stored results, deciding bands | coverage of the 90% sets between 88% and 92% on the test split | 2 |
+| T43e | Survey features, gates, E0 feature trees, E2 spectrum trees, E4, E7, and the input ladder of section 9.11 | release gate values and every rung of the input ladder reported per brightness bin | 3 |
+| T43f | Stacking, calibration, conformal sets, resampled ranges, the three stored results, feature contributions, deciding bands | coverage of the 90% sets between 88% and 92% on the test split | 2 |
 | T43g | Novelty checks with the contamination screens first | a left-out type is flagged at the stated rate | 1 |
 | T43h (stretch) | E3 autoencoder member, added to the stack | kept only if the test score improves | 3 |
 | T43i (stretch) | Model grid comparison for ultracool dwarfs | spread between grids shown beside the best fit | 3 |
@@ -1271,7 +1291,17 @@ Reference points from published work, so a judge can compare: 81.2% clean matche
 
 **Worth testing, in order of expected gain**
 
-Test inputs first: run the same model on bands only, bands plus indices, and bands plus indices plus survey data. Inputs move the score more than the model does (fact 9).
+Test inputs first. Inputs move the score more than the model does (fact 9). Run the same XGBoost settings on each rung of this input ladder, on the same split, and report balanced accuracy and recall per type for each rung, per brightness bin:
+
+| Rung | Inputs | What it answers |
+|---|---|---|
+| 1 | Molecule features only (methane, water ice, CO2, CO, 3.3 µm emission, hydrogen lines) | How much of the type the molecules alone reveal. This is expert E0 without the slopes |
+| 2 | All stage 10 features: rung 1 plus the two slopes | What the overall colour adds. This is expert E0 |
+| 3 | The 102 bands only | What a model finds with no physics given to it |
+| 4 | Bands plus features | Whether the features add to the raw bands |
+| 5 | Rung 4 plus survey data | What Gaia, WISE and the other surveys add |
+
+Every rung is published in the model card and as proof test B13, as measured. No rung has a pass mark. The shipped type model is still chosen by the rules below.
 
 | Job | Alternative | Library call | Why it might win | Watch out for |
 |---|---|---|---|---|
@@ -1705,8 +1735,8 @@ Start on a small real pack from T03 or T07. Do not build against invented data.
 - [ ] **T43b** Training spectra: ingest SPIFF, extract cube spectra, cross-extraction and calibration checks. *Check: median ratio per band within 10% for bright isolated sources.*
 - [ ] **T43c** Molecule readings with resampled errors and refusal reasons. *Check: methane dip significant for Epsilon Indi B and absent for Barnard's Star.*
 - [ ] **T43d** Template match with SPIFF templates and per-type medians. *Check: subtype within 2 of the literature for 80% of a held-out sample.*
-- [ ] **T43e** Survey features, physical gates, XGBoost spectrum trees, motion and distance expert, sky prior. *Check: release gate values reported per brightness bin.*
-- [ ] **T43f** Stacking, calibration, conformal sets, resampled ranges, both stored results, deciding bands. *Check: 90% sets cover between 88% and 92% on the test split. If the gate fails, no type is published.*
+- [ ] **T43e** Survey features, physical gates, XGBoost feature trees (E0) and spectrum trees (E2), motion and distance expert, sky prior, the input ladder of section 9.11. *Check: release gate values and every rung of the input ladder reported per brightness bin.*
+- [ ] **T43f** Stacking, calibration, conformal sets, resampled ranges, the three stored results, feature contributions, deciding bands. *Check: 90% sets cover between 88% and 92% on the test split. If the gate fails, no type is published.*
 - [ ] **T43g** Novelty checks, with the contamination screens first. *Check: a left-out type is flagged at the stated rate.*
 - [ ] **T43h** (stretch) Autoencoder member added to the stack. *Check: kept only if the test score improves.*
 - [ ] **T43i** (stretch) Model grid comparison for ultracool dwarfs. *Check: spread between grids shown beside the best fit.*
@@ -1811,6 +1841,7 @@ These sit outside any lane. Each is written so that nothing else waits on it.
 | B10 | edge check | False flag rate on non-variable stars | 1% or less |
 | B11 | ultracool dwarf subtype | Held-out SPIFF sample | within 2 subtypes for 80% |
 | B12 | cross-extraction | Our spectra against SPIFF and the Spectrophotometry Tool | median ratio within 10% per band |
+| B13 | type model | Input ladder: balanced accuracy and recall per type for molecule features alone, all features, bands, bands plus features, and all data | published as measured |
 
 ### 13.4 What the Proof panel states in words
 
@@ -1820,6 +1851,7 @@ These sit outside any lane. Each is written so that nothing else waits on it.
 - Class percentages are calibrated on our test fields only.
 - A class is a suggestion for follow-up. It confirms nothing.
 - Molecule readings are feature strengths. Composition percentages are shown only for ice relative to water ice.
+- How much of an object's type its molecule readings alone reveal, and what the rest of the spectrum and the other surveys add. Generated from B13.
 
 ### 13.5 Credits to show
 
@@ -1972,6 +2004,8 @@ Full history. New decisions go in `docs/decisions.md` first, then into this sect
 - Code is split into three lanes by area: Engine, ML, Web. Any person or agent can take any lane.
 - The docs assign no work to named people and set no start times. The project runs on its own. Outside contributions are welcome and nothing depends on them.
 - The Spectrophotometry Tool is optional. The cube calibration check uses our own single-frame spectra.
+- Molecule readings first (section 3.11): expert E0 gives a type estimate from molecule features alone, three results are stored per source (molecule readings alone, spectrum alone, all data), every estimate is explained by feature contributions, and the input ladder is published as proof test B13.
+- The repository is shared by the whole team. `SETUP.md` is the setup guide for any person or agent, `CONTRIBUTING.md` says how work flows, and a task is claimed by opening a draft pull request.
 
 ### Questions still open from the 13 Nov deck
 
